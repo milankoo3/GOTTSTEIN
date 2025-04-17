@@ -1,0 +1,272 @@
+
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Myšlienková Galéria Promptov</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px 0;
+    }
+    .clear-button, .add-card-button {
+      padding: 8px 16px;
+      border: none;
+      background: #4d79ff;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      position: relative;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      height: 350px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .top-controls {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+    .top-controls div {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      backdrop-filter: blur(5px);
+    }
+    .add-image-btn {
+      font-size: 48px;
+      color: #999;
+      cursor: pointer;
+      user-select: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .text-box {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      right: 10px;
+      background: white;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 14px;
+      max-height: 50%;
+      overflow-y: auto;
+      display: none;
+      z-index: 9;
+    }
+    .image-container {
+      width: 100%;
+      height: 100%;
+    }
+    .image-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .products-container {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px;
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      justify-content: center;
+      z-index: 9;
+    }
+    .product-thumb {
+      width: 60px;
+      height: 60px;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+    .product-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    .product-thumb:hover img {
+      transform: scale(2.5);
+      z-index: 1000;
+      position: absolute;
+      top: -50%;
+      left: -50%;
+    }
+    input[type="file"] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button class="add-card-button" onclick="createCard()">+ Pridať kartičku</button>
+    <button class="clear-button" onclick="clearGallery()">Vymazať všetko</button>
+  </div>
+  <div class="gallery" id="gallery"></div>
+  <input type="file" id="fileInput" accept="image/*">
+  <input type="file" id="productInput" accept="image/*" multiple>
+  <script>
+    const gallery = document.getElementById("gallery");
+    const fileInput = document.getElementById("fileInput");
+    const productInput = document.getElementById("productInput");
+    let currentCardForImage = null;
+    let currentCardForProducts = null;
+    function saveToLocalStorage() {
+      const cardsData = [];
+      document.querySelectorAll(".card").forEach(card => {
+        const img = card.querySelector("img")?.src || "";
+        const text = card.querySelector(".text-box")?.innerHTML || "";
+        const products = Array.from(card.querySelectorAll(".product-thumb img")).map(p => p.src);
+        cardsData.push({ img, text, products });
+      });
+      localStorage.setItem("galleryData", JSON.stringify(cardsData));
+    }
+    function loadFromLocalStorage() {
+      const data = JSON.parse(localStorage.getItem("galleryData") || "[]");
+      data.forEach(entry => createCard(entry));
+    }
+    function clearGallery() {
+      if (confirm("Naozaj chceš vymazať všetky kartičky?")) {
+        localStorage.removeItem("galleryData");
+        gallery.innerHTML = "";
+      }
+    }
+    function deleteCard(card) {
+      card.remove();
+      saveToLocalStorage();
+    }
+    function createCard(data = {}) {
+      const card = document.createElement("div");
+      card.className = "card";
+      const topControls = document.createElement("div");
+      topControls.className = "top-controls";
+      const btnText = document.createElement("div");
+      btnText.innerText = "T";
+      const btnProduct = document.createElement("div");
+      btnProduct.innerText = "P";
+      const btnDelete = document.createElement("div");
+      btnDelete.innerText = "×";
+      topControls.appendChild(btnProduct);
+      topControls.appendChild(btnText);
+      topControls.appendChild(btnDelete);
+      card.appendChild(topControls);
+      const plus = document.createElement("div");
+      plus.className = "add-image-btn";
+      plus.innerHTML = "+";
+      plus.addEventListener("click", () => {
+        currentCardForImage = card;
+        fileInput.click();
+      });
+      const imageContainer = document.createElement("div");
+      imageContainer.className = "image-container";
+      if (data.img) {
+        const img = document.createElement("img");
+        img.src = data.img;
+        imageContainer.appendChild(img);
+        plus.style.display = "none";
+      }
+      const textBox = document.createElement("div");
+      textBox.className = "text-box";
+      textBox.contentEditable = true;
+      textBox.innerHTML = data.text || "Zadaj text...";
+      textBox.addEventListener("blur", saveToLocalStorage);
+      const productsContainer = document.createElement("div");
+      productsContainer.className = "products-container";
+      if (data.products && data.products.length) {
+        data.products.forEach(src => {
+          const thumb = document.createElement("div");
+          thumb.className = "product-thumb";
+          const img = document.createElement("img");
+          img.src = src;
+          thumb.appendChild(img);
+          productsContainer.appendChild(thumb);
+        });
+      }
+      btnText.addEventListener("click", () => {
+        textBox.style.display = textBox.style.display === "block" ? "none" : "block";
+        textBox.focus();
+      });
+      btnProduct.addEventListener("click", () => {
+        currentCardForProducts = productsContainer;
+        productInput.click();
+      });
+      btnDelete.addEventListener("click", () => deleteCard(card));
+      card.appendChild(imageContainer);
+      card.appendChild(plus);
+      card.appendChild(textBox);
+      card.appendChild(productsContainer);
+      gallery.appendChild(card);
+    }
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file && currentCardForImage) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const imageContainer = currentCardForImage.querySelector(".image-container");
+          imageContainer.innerHTML = "";
+          const img = document.createElement("img");
+          img.src = event.target.result;
+          imageContainer.appendChild(img);
+          currentCardForImage.querySelector(".add-image-btn").style.display = "none";
+          saveToLocalStorage();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    productInput.addEventListener("change", (e) => {
+      if (e.target.files && currentCardForProducts) {
+        Array.from(e.target.files).forEach(file => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const thumb = document.createElement("div");
+            thumb.className = "product-thumb";
+            const img = document.createElement("img");
+            img.src = event.target.result;
+            thumb.appendChild(img);
+            currentCardForProducts.appendChild(thumb);
+            currentCardForProducts.style.display = "flex";
+            saveToLocalStorage();
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    });
+    loadFromLocalStorage();
+  </script>
+</body>
+</html>
